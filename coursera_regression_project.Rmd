@@ -1,0 +1,68 @@
+---
+output: pdf_document
+---
+```{r, results='hide', message=FALSE}
+require(ggplot2)
+require(tidyr)
+require(dplyr)
+require(grid)
+require(gridExtra)
+```
+EXECUTIVE SUMMARY
+```{r}
+#The whole point of an executive summary is to compress a lengthy report in a few sentences so that a person with very limited time to invest (like an executive director) would be able to understand what the whole thing is about. It should include all: the problem, the methods used and the results obtained.
+```
+This report aims at investigating the following questions on the base of the database mtcars:
+
+1. Is an automatic or manual transmission better for MPG (miles per gallons)     
+2. Quantify the MPG difference between automatic and manual transmissions     
+
+The database contains `r length(mtcars$am)` car models of which `r table(mtcars$am)[1]` have automatic transmission and `r table(mtcars$am)[2]` have manual.
+
+```{r, fig.width= 8}
+data(mtcars)
+mtcars$cyl <- factor(mtcars$cyl); mtcars$vs <- factor(mtcars$vs) 
+mtcars$am <- factor(mtcars$am); mtcars$gear <- factor(mtcars$gear) 
+mtcars$carb <- factor(mtcars$carb)
+head(mtcars)
+```
+
+```{r, fig.width=9}
+names_var <- names(select(mtcars, -mpg))
+out <- NULL
+g <- ggplot(mtcars, aes(y = mpg))
+for(i in 1:length(names_var)){
+    
+    g <- g + aes_string(x = names_var[i]) + geom_point(aes(colour = factor(am))) + geom_smooth(method = "lm", aes(group = 1)) + guides(colour = FALSE)
+    
+    out[[i]] <- g # creates a list with all the plots 
+}
+grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], out[[8]], out[[9]], out[[10]], nrow = 2)
+```
+    
+The analysis takes first in consideration a linear model with "am" as a predictor and "mpg" as a response. The variable "am" is 0 for automatic transmission and 1 for manual.    
+   
+```{r}
+fit1 <- lm(mpg ~ am, mtcars)
+summary(fit1)
+```
+The relatevly high F-statistic and the very low p-value confirm that there might be a correlation, but if we look at how well the model fit, R-squared `r round(summary(fit1)$r.squared, 3)` is very low (1 being best fit, 0 being no fit at all). This, together with a Residual Standard Error (RSE) of `r sd(summary(fit1)$residuals)`, suggests that the model is not very accurate and that there might be other model to better explain the correlation.
+We look therefore to other variables that might be confounder. 
+
+```{r}
+fit2 <- lm(mpg ~ am + cyl + disp + hp + drat +wt + qsec + vs + gear + carb, mtcars)
+plot(mtcars$am, mtcars$mpg)
+abline(fit2)
+summary(fit2)
+
+```
+
+The most influential confounder variable seems to be "wt", the weight.
+
+```{r}
+fit3 <- lm(mpg ~ am + wt, mtcars)
+plot(mtcars$am, mtcars$mpg)
+abline(fit3)
+summary(fit3)
+summary(lm(mpg ~ am*wt, mtcars))
+```
