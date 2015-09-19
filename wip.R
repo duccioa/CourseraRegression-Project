@@ -119,3 +119,81 @@ for(i in 1:length(names_var)){
 }
 grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], nrow = 3)
 
+
+
+###exercise from the book
+data("Seatbelts")
+df <- as.data.frame(Seatbelts)
+df$outcome[df$DriversKilled > 119] <- 1
+df$outcome[df$DriversKilled <= 119] <- 0
+df_glm <- glm(outcome ~ kms + PetrolPrice + law, family = "binomial", data = df)
+plot(df_glm)
+
+#####################################
+data(mtcars)
+mtcars$cyl <- factor(mtcars$cyl); mtcars$vs <- factor(mtcars$vs) 
+mtcars$am <- factor(mtcars$am); mtcars$gear <- factor(mtcars$gear) 
+mtcars$carb <- factor(mtcars$carb)
+
+fit_all <- lm(mpg ~ ., mtcars)
+summary(fit_all)
+fit_am <- lm(mpg ~ am, mtcars)
+summary(fit_am)
+fit_am_wt <- lm(mpg ~ am + wt, mtcars)
+summary(fit_am_wt)
+fit_am_wt_drat <- lm(mpg ~ am + wt + drat, mtcars)
+summary(fit_am_wt_drat)
+fit_am_wt_drat_qsec <- lm(mpg ~ am + wt + drat + qsec, mtcars)
+summary(fit_am_wt_drat_qsec)
+fit_am_wt_drat_qsec_gear <- lm(mpg ~ am + wt + drat + qsec + gear, mtcars)
+summary(fit_am_wt_drat_qsec_gear)
+anova(fit_am, fit_am_wt, fit_am_wt_drat, fit_am_wt_drat_qsec, fit_am_wt_drat_qsec_gear)
+
+
+fit_all <- lm(mpg ~ ., mtcars)
+summary(fit_all)
+fit_am <- lm(mpg ~ am, mtcars)
+summary(fit_am)
+fit_am_wt <- update(fit_am, mpg ~ am + wt)
+summary(fit_am_wt)
+fit_am_wt_drat <- update(fit_am_wt, mpg ~ am + wt + drat)
+summary(fit_am_wt_drat)
+#fit_am_wt_qsec <- update(fit_am_wt, mpg ~ am + wt + qsec)
+#summary(fit_am_wt_qsec)
+
+anova(fit_am, fit_am_wt, fit_am_wt_qsec)
+
+fit_am_wt_drat_qsec <- update(fit_am_wt_drat, mpg ~ am + wt + drat + qsec)
+anova(fit_am, fit_am_wt, fit_am_wt_qsec, fit_am_wt_drat_qsec)
+fit_am_wt_drat_qsec_cyl <- update(fit_am_wt_drat, mpg ~ am + wt + drat + qsec + cyl)
+anova(fit_am, fit_am_wt, fit_am_wt_qsec, fit_am_wt_drat_qsec, fit_am_wt_drat_qsec_cyl)
+
+fit1 <- update(fit_am, mpg ~ am + wt)
+fit2 <- update(fit_am, mpg ~ am + wt + cyl)
+fit3 <- update(fit_am, mpg ~ am + wt + cyl + disp)
+fit4 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp)
+fit5 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp + drat)
+fit6 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp + drat + qsec)
+fit7 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp + drat + qsec + vs)
+fit8 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp + drat + qsec + vs + gear)
+fit9 <- update(fit_am, mpg ~ am + wt + cyl + disp + hp + drat + qsec + vs + gear + carb)
+anova(fit_am, fit1, fit2, fit3, fit4, fit5, fit6, fit7, fit8, fit9)
+
+
+
+###after literature review
+fit <- lm(mpg ~ wt, mtcars)
+summary(fit)
+fit1 <- update(fit, mpg ~ wt + cyl)
+summary(fit1)
+fit2 <- update(fit, mpg ~ wt + cyl + am)
+summary(fit2)
+
+###
+fit_interaction <- lm(mpg ~ am + wt + am*wt, mtcars)
+summary(fit_interaction)
+plot(mtcars$wt, mtcars$mpg, col = mtcars$am)
+plot(mtcars$wt, mtcars$mpg)
+
+abline(31.4161,  -3.7859)
+abline(31.4161+14.87,  -3.7859-5.29, col = "red")
