@@ -13,14 +13,19 @@ require(grid)
 require(gridExtra)
 ```
 
-EXECUTIVE SUMMARY
-```{r}
-#The whole point of an executive summary is to compress a lengthy report in a few sentences so that a person with very limited time to invest (like an executive director) would be able to understand what the whole thing is about. It should include all: the problem, the methods used and the results obtained.
-```
-This report aims at investigating the following questions on the base of the database mtcars:
+***EXECUTIVE SUMMARY***
+This report aims at investigating the following questions:
 
 1. Is an automatic or manual transmission better for MPG (miles per gallons)     
 2. Quantify the MPG difference between automatic and manual transmissions     
+
+The analysis is carried out on the dataset mtcars. Due to the small number of models and the age of the dataset, the results cannot be generalised to the current population of cars, but can give an insight within the set of cars considered.
+
+The sole distinction between manual and automatic cars is a poor predictor of the fuel consumption and other factors more influential have to be taken into account in a more precise prediction. The other reason we need to consider other factors is that in the database, manual cars tend to be imported models generally lighter and smaller, hence with lower fuel consumption.
+
+To better answer the question we therefore propose a model to predict fuel consumption which includes, on top of the a/m distinction, the weight of the car and the number of cylinders. In this context, there is not a statistically significant difference in fuel consumption between manual cars and automatic ones.
+
+***REPORT***
 
 The database contains `r length(mtcars$am)` car models of which `r table(mtcars$am)[1]` have automatic transmission and `r table(mtcars$am)[2]` have manual.
 
@@ -33,7 +38,7 @@ data(mtcars)
 #mtcars$imp <- 1
 #mtcars$imp[c(1:3, 8:14, 18:21, 26:28, 30:32)] <- 0
 #mtcars$imp <- as.logical(mtcars$imp)
-head(mtcars)
+#head(mtcars)
 ```
 
 ```{r Exploratory graph creation, fig.width=9, include=FALSE}
@@ -61,22 +66,39 @@ t$conf.int
 We consider a linear model with "am" as a predictor and "mpg" as a response.    
    
 ```{r Fit model 1, fig.height= 3, fig.width= 4}
-out[[8]]
 fit_am <- lm(mpg ~ am, mtcars)
-summary(fit_am)
 ```
 The relatevly high F-statistic and the very low p-value confirm that there might be a correlation, but if we look at how well the model fit, R-squared `r round(summary(fit_am)$r.squared, 3)` is very low (1 being best fit, 0 being no fit at all). This, together with a Residual Standard Error (RSE) of `r round(sd(summary(fit_am)$residuals), 3)`, suggests that the model is not very accurate and that there might be other model to better explain the correlation.
-We look therefore to other variables that might be confounder. Based on a brief literature review the variables that can be relevant to our analysis are weight, displacement (the amount of fuel burnt per stroke of the engine), the number of cylinders and the rear axle ratio (drat in dataset).
-The number of cylinders can tell a lot about a car because it is related to the size and power of the engine and therefore the size and the type of the car. Displacement gives similar information about the engine. The weight combined with the number of cylinders and the displacement, can tell whether we are talking about a small car (small cyl, wt and disp therefore high mpg), a big car (high cyl, wt and disp and low mpg) or a sport car (high cyl and disp, low weight, low mpg). 
+We look therefore to other variables that might be confounder. Based on a brief literature review, the variables that can be relevant to our analysis are weight, the number of cylinders and the rear axle ratio (drat in dataset). We can call primary this variables as this are the engine and car specifications rather than performance. Other variables as "qsec" (which measures the acceleration) and "hp" (which measure the power of the engine) can be good indicators but they are performance variables and are consequences of the primary specs.
+The number of cylinders can tell a lot about a car because it is related to the size and power of the engine and therefore the size and the type of the car. Displacement (the amount of fuel burnt per stroke of the engine) gives similar information about the engine but it is correlated with cylinders(see APPENDIX). The weight combined with the number of cylinders and the displacement, can tell whether we are talking about a small car (small cyl, wt and disp therefore high mpg), a big car (high cyl, wt and disp and low mpg) or a sport car (high cyl and disp, low weight, low mpg). 
 
-```{r cyl and disp}
+```{r MODEL 1}
 fit_cyl <- lm(mpg ~ cyl, mtcars)
-fit_cyl_disp <- update(fit_cyl, mpg ~ cyl + disp)
 ```
-The predictor "cyl" explains 
+The predictor "cyl" explains `r paste(round(summary(fit_cyl)$r.squared*100, 1), "%")` of "mpg" variation. ADD DESCRIPTION OF THE SUMMARY
+```{r MODEL 2}
+fit_cyl_wt <- update(fit_cyl, mpg ~ cyl + wt)
+```
+Once we factor in the weight "wt", the model explains `r paste(round(summary(fit_cyl_wt)$r.squared*100, 1), "%")` of "mpg" variation with a RSE of `r round(summary(fit_cyl_wt)$sigma)` and very low p-values.
+In the final part we add the variable "am". From the graph in the appendix with "am" as a predictor, it seems that there is an interaction between "am" and "wt", as automatic cars in the dataset tend to be heavier than the manuals one (a t.test over the two populations confirm that, see APPENDIX).
 
 
+The third model includes cyinders, weight, manual/automatic transmission and the interaction between the latter and the weight
 
+```{r MODEL 3}
+fit_cyl_wt_am <- update(fit_cyl_wt, mpg ~ cyl + wt + am + wt:am)
+```
+
+Last, we add the variables "drat" and the interaction between "disp" and "cyl".
+
+```{r MODEL 4 and 5}
+fit_cyl_wt_am_drat <- update(fit_cyl_wt, mpg ~ cyl + wt + am + drat + wt:am)
+fit_cyl_wt_am_drat_disp <- update(fit_cyl_wt, mpg ~ cyl + wt + am + drat + wt:am + cyl:disp)
+```
+We can now run an anova test to verify which of these variale can be dropped without loss of relevant information.
+```{r}
+anova(fit_cyl, fit_cyl_wt, fit_cyl_wt_am, fit_cyl_wt_am_drat, fit_cyl_wt_am_drat_disp)
+```
 
 
 APPENDIX
@@ -84,4 +106,21 @@ Exploratory graphs
 
 ```{r, fig.width=9, cache=TRUE, results=TRUE, echo=FALSE}
 grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], out[[8]], out[[9]], out[[10]], nrow = 2)
+```
+
+```{r Correlation between wt and am}
+attach(mtcars)
+cor(wt, am)
+t.test(wt[am == 0], wt[am == 1])
+summary(lm(wt ~ am))
+detach(mtcars)
+```
+
+```{r Correlation between disp and cyl}
+attach(mtcars)
+cor(cyl, disp)
+t.test(disp[cyl == 4], disp[cyl == 6])
+t.test(disp[cyl == 6], disp[cyl == 8])
+summary(lm(disp ~ cyl))
+detach(mtcars)
 ```
