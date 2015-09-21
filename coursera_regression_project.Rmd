@@ -14,6 +14,12 @@ require(dplyr)
 require(grid)
 require(gridExtra)
 ```
+
+```{r, model function}
+mpg <- function(wt,cyl){
+    47.86 -9.27*wt + 0.81*(wt^2) - 1.15*cyl
+}
+```
 #FUEL CONSUMPTION: MANUAL VS AUTOMATIC CARS
 ##EXECUTIVE SUMMARY  
 
@@ -22,11 +28,19 @@ This report aims at investigating the following questions:
 1. Is an automatic or manual transmission better for MPG (miles per gallons)     
 2. Quantify the MPG difference between automatic and manual transmissions     
 
+The conclusion of the analysis is that the type of transmission does not affect the fuel consumption and that the weight of the car and the number of cylinders are much more accurate predictors. It is developed a model based on these two predictors and the following table summarises the predictions of fuel consumption in miles per gallons, depending on weight and number of cylinders:     
+
+Weight (tons)|4 cyl|6 cyl|8 cyl
+---|---|---|---
+2|`r round(mpg(2,4),2)`|`r round(mpg(2,6),2)`|`r round(mpg(2,8),2)`
+3|`r round(mpg(3,4),2)`|`r round(mpg(3,6),2)`|`r round(mpg(3,8),2)`
+4|`r round(mpg(4,4),2)`|`r round(mpg(4,6),2)`|`r round(mpg(4,8),2)`
+5|`r round(mpg(5,4),2)`|`r round(mpg(5,6),2)`|`r round(mpg(5,8),2)`      
+
+
 The analysis is carried out on the dataset mtcars. Due to the small number of models and the age of the dataset, the results cannot be generalised to the current population of cars, but can give an insight within the set of cars considered.
 
-The sole distinction between manual and automatic cars is a poor predictor of the fuel consumption and other factors more influential have to be taken into account in a more precise prediction. The other reason we need to consider other factors is that in the database, manual cars tend to be imported models generally lighter and smaller, hence with lower fuel consumption.
 
-To better answer the question we therefore propose a model to predict fuel consumption which includes, on top of the a/m distinction, the weight of the car and the number of cylinders. In this context, there is not a statistically significant difference in fuel consumption between manual cars and automatic ones.
 
 ##REPORT
 
@@ -35,14 +49,6 @@ The variable "am" is **0** for automatic transmission and **1** for manual.
 
 ```{r Dataset, fig.width=11}
 data(mtcars)
-#mtcars$cyl <- factor(mtcars$cyl); mtcars$vs <- factor(mtcars$vs) 
-#mtcars$am <- factor(mtcars$am); mtcars$gear <- factor(mtcars$gear) 
-#mtcars$carb <- factor(mtcars$carb)
-#add a column with origin
-#mtcars$imp <- 1
-#mtcars$imp[c(1:3, 8:14, 18:21, 26:28, 30:32)] <- 0
-#mtcars$imp <- as.logical(mtcars$imp)
-#head(mtcars)
 ```
 
 ```{r Exploratory graph creation, fig.width=9, include=FALSE}
@@ -61,14 +67,14 @@ grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]
 ```{r T.test, include = FALSE}
 t <- t.test(mtcars$mpg ~ mtcars$am)
 ```    
-A simple t-test confirm that the two transmissions are not from the same population as the interval does not contain 0 and the p-value **`r round(t$p.value, 4)`** is sufficiently low (see _Appendix 2_), therefore there is a statistcally significant difference in the "mpg" of the two groups. For the sake of this projects we assume "mpg" to have a normal distribution, although it looks a little skewed. 
+A simple t-test confirm that the two transmissions are not from the same population as the interval does not contain 0 and the p-value **`r round(t$p.value, 4)`** is sufficiently low (see _Appendix 2_), therefore there is a statistcally significant difference between the "mpg" of the two groups.  
 ```{r Fit model am, fig.height= 3, fig.width= 4}
 fit_am <- lm(mpg ~ am, mtcars)#model0
 ```
 We consider a linear model with "am" as a predictor and "mpg" as a response (see _Appendix 3_).
 The model performs poorly: R-squared **`r round(summary(fit_am)$r.squared, 3)`** is very low (1 being best fit, 0 being no fit at all) and this, together with a Residual Standard Error (RSE) of **`r round(sd(summary(fit_am)$residuals), 3)`**, suggests that the model is not accurate.   
 
-We look therefore at other variables that might be confounders. Let's call primary the variables that refer to specifications of the car of the engine ("cyl", "disp", "drat", "wt", "vs", "am", "gear", "carb") and secondary the ones that are performance on the car ("mpg", "hp", "qsec") and therefore consequences of the primary ones. We are interesting in the outcome of a secondary variable ("mpg") with primary variables as predictors. Based on a brief literature review, the variables that can be relevant to our analysis are weight, the number of cylinders and the displacement. The rear axle ratio ("drat") is also mentioned as having an impact on fuel consumption.
+We look therefore at other variables that might be confounders. Let's call primary the variables that refer to technical specifications of the car and the engine ("cyl", "disp", "drat", "wt", "vs", "am", "gear", "carb") and secondary the ones that refer to performance of the car ("mpg", "hp", "qsec") and therefore consequences of the primary ones. We are interested in the outcome of a secondary variable ("mpg") with primary variables as predictors. Based on a brief literature review, the variables that can be relevant to our analysis are weight ("wt"), the number of cylinders ("cyl") and the displacement ("disp"). The rear axle ratio ("drat") is also mentioned as having an impact on fuel consumption.
 The weight and the number of cylinders can tell a lot about a car because they are related to the size and power of the engine and therefore the size and the type of car. Displacement (the amount of fuel burnt per stroke of the engine) gives similar information about the engine but in this case it is correlated with cylinders (see _Appendix 4_) and we therefore use interaction rather than confounding.  
 We will proceed at setting up 5 nested models, verifying the best fit and then drop redundant variables through an ANOVA test.
 
@@ -79,31 +85,40 @@ fit_wt2_cyl <- update(fit_wt2, mpg ~ wt + I(wt^2) + cyl)#model3
 fit_wt2_cyl_am <- update(fit_wt2_cyl, mpg ~ wt + I(wt^2) + cyl + am + wt:am)#model4
 fit_wt2_cyl_am_disp_drat <- update(fit_wt2_cyl_am, mpg ~ wt + I(wt^2) + cyl + am + drat + wt:am + cyl:disp)#model5
 ```
-A look at the "wt" plot of _Appendix 1_ we can imagine two groups of cars, one of light and manual cars and the other of heavy and automatic cars. The plot in _Appendix 5_ suggests that there are indeed two groups with different reaction to the increase to weight. Rather than automatic/manuals having different "mpg" trend based on the weight, we suggest that there is a quadratic relationship between "wt" and "mpg", that is the slope changes with the weight (steeper on the left side of the graph, flatter on the right). This would explain why mpg in manuals cars, that are on the left of the graph, have a steeper slope than automatic ones.
-Let's have _model1_ with the linear predictor "wt" and _model2_ where we add "wt"^2. Indeed model2 better explains the relationship between "wt" and "mpg", as the R-squared goes from **`r round(summary(fit_wt)$r.squared, 2)`** to **`r round(summary(fit_wt2)$r.squared, 2)`** with a reduced RSE from **`r round(summary(fit_wt)$sigma, 2)`** to **`r round(summary(fit_wt2)$sigma, 2)`** and improved p-value (see _appendix 6_).
+If we look at the "wt" plot of _Appendix 1_, we can imagine two groups of cars: one of light and manual cars and the other of heavy and automatic cars. The plot in _Appendix 5_ suggests that there are indeed two groups with different reaction to the increase in weight. Rather than automatic/manuals having different "mpg" trend based on the weight, we suggest that there is a quadratic relationship between "wt" and "mpg", that is the slope changes with the weight (steeper on the left side of the graph, flatter on the right). This would explain why mpg in manuals cars, that are on the left of the graph, have a steeper slope than automatic ones.
+Let's have _model1_ with the linear predictor "wt" and _model2_ where we add "$wt^2$". Indeed model2 better explains the relationship between "wt" and "mpg", as the R-squared goes from **`r round(summary(fit_wt)$r.squared, 2)`** to **`r round(summary(fit_wt2)$r.squared, 2)`** with a reduced RSE from **`r round(summary(fit_wt)$sigma, 2)`** to **`r round(summary(fit_wt2)$sigma, 2)`** and improved p-value (see _appendix 6_).
 In _model 3_ we add the variable "cyl".
 In _model4_ we introduce the variable "am", to try to answer the initial question and its interaction with "wt" (see _Appendix 5_).
-Based on literature review, displacement can have a big impact on fuel consumption, hence in _model5_, we introduce the interaction between "cyl" and "disp", plus the variable "drat". 
+In _model5_, we introduce the interaction between "cyl" and "disp", plus the variable "drat". 
 We can now run an anova test to verify which of these variale can be dropped without loss of relevant information.
 ```{r Anova test, echo=TRUE, results=FALSE}
 a <- anova(fit_wt, fit_wt2, fit_wt2_cyl, fit_wt2_cyl_am, fit_wt2_cyl_am_disp_drat)
 ```
-The Anova test reveals that the impact of manual/automatic transmission on "mpg", with a p-value of 0.15 is not statistically significant (the variable "am" can be dropped) and that the most relevant variables in the dataset in predicting fuel consumption are the weight and the number of cylinders.
+The Anova test reveals that the impact of manual/automatic transmission on "mpg", with a p-value of 0.15 is not statistically significant (the variable "am" can be dropped) and that the most relevant variables of the dataset at predicting fuel consumption are the weight and the number of cylinders.
 We propose _model3_ as the most accurate in predicting the fuel consumption based on primary variables, as below:  
     
 $mpg_i$ = `r round(fit_wt2_cyl$coefficients[1], 2)` + `r round(fit_wt2_cyl$coefficients[2], 2)`$wt_i$ + `r round(fit_wt2_cyl$coefficients[3], 2)`$wt_i^2$ + `r round(fit_wt2_cyl$coefficients[4], 2)`$cyl_i$
 
-The model explains ***`r round(summary(fit_wt2_cyl)$r.squared, 1)`%*** of the variation in fuel consumption with a residual standard error of ***`r round(summary(fit_wt2_cyl)$sigma, 1)` miles per gallon***. All of the coefficients are significant at 0.05 significant level.
-As final check we look at the plots of the residuals (see _Appendix 8_) to verify the following assumptions:
+The model explains ***`r round(summary(fit_wt2_cyl)$r.squared, 2)*100`%*** of the variation in fuel consumption with a residual standard error of ***`r round(summary(fit_wt2_cyl)$sigma, 1)` miles per gallon***. All of the coefficients are significant at 0.05 significant level.
+We look at the plots of the residuals (see _Appendix 8_) in order to verify the following assumptions:
 
 1. The variables are indipendent : the Residuals vs Fitted shows no pattern and confirm indipendency;
 2. Normality of the residuals: the Normal Q-Q plot shows the standardised residuals laying on the line and confirm normality;
 3. Constant variance: the Scale-Location plot shows the points randomly distributed and confirm the variance is constant;
 4. In the Residuals vs Leverage plot all the points fall within the 0.5 band and confirm that there are no outliers.
 
+As a final check, we verify the presence of outliers that can influence the model. In _model3_ the number of observations with a dfbeta coefficient bigger than 1 is `r sum(abs(dfbetas(fit_wt2_cyl))>1)`, therefore the model meets the all the basic assumptions of linear regression.
 
+##CONCLUSIONS
 
+In conclusion, it is found that the type of transmission does not significantly affect the fuel consumption. 
+The sole distinction between manual and automatic cars is a poor predictor of the fuel consumption and other factors more influential have to be taken into account for a more precise prediction.
+We make a distinction between primary variables (car and engine's technical specifications) and secondary variables (variables describing a performance, which are the result of the primary technical specifications). We propose a model to predict fuel consumption using primary variables.
+The model takes into account weight and numer of cylinders can explain `r round(summary(fit_wt2_cyl)$r.squared, 2)*100`% of the variation in miles per gallons with a residual standard error of `r round(summary(fit_wt2_cyl)$sigma, 2)`.
 
+##NOTES
+In order to reduce the lenght of the report I have omitted several tables. The code to replicate the analisys and read the tables is in the appendix.
+This pdf document has been created with Knitr from a Markdown document in R Studio. The complete code can be found as a repository at the address: https://github.com/duccioa/CourseraRegression-Project
 
 
 ##APPENDIX     
