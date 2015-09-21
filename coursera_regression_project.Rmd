@@ -1,5 +1,7 @@
 ---
-output: pdf_document
+output: 
+  pdf_document: 
+    keep_tex: yes
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE)
@@ -12,8 +14,9 @@ require(dplyr)
 require(grid)
 require(gridExtra)
 ```
+#FUEL CONSUMPTION: MANUAL VS AUTOMATIC CARS
+##EXECUTIVE SUMMARY  
 
-***EXECUTIVE SUMMARY***
 This report aims at investigating the following questions:
 
 1. Is an automatic or manual transmission better for MPG (miles per gallons)     
@@ -25,9 +28,10 @@ The sole distinction between manual and automatic cars is a poor predictor of th
 
 To better answer the question we therefore propose a model to predict fuel consumption which includes, on top of the a/m distinction, the weight of the car and the number of cylinders. In this context, there is not a statistically significant difference in fuel consumption between manual cars and automatic ones.
 
-***REPORT***
+##REPORT
 
-The database contains `r length(mtcars$am)` car models of which `r table(mtcars$am)[1]` have automatic transmission and `r table(mtcars$am)[2]` have manual.
+The database contains **`r length(mtcars$am)`** car models of which **`r table(mtcars$am)[1]`** have automatic transmission and **`r table(mtcars$am)[2]`** have manual. 
+The variable "am" is **0** for automatic transmission and **1** for manual.
 
 ```{r Dataset, fig.width=11}
 data(mtcars)
@@ -53,62 +57,124 @@ for(i in 1:length(names_var)){
 }
 grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], out[[8]], out[[9]], out[[10]], nrow = 2)
 ```
-    
-First we check the null hypothesis that manual and automatic transmissions cars are from the same population (the variable "am" is 0 for automatic transmission and 1 for manual.). For the sake of this projects we assume "mpg" to have a normal distribution, although it looks a little skewed. 
+
 ```{r T.test, include = FALSE}
 t <- t.test(mtcars$mpg ~ mtcars$am)
+```    
+A simple t-test confirm that the two transmissions are not from the same population as the interval does not contain 0 and the p-value **`r round(t$p.value, 4)`** is sufficiently low (see _Appendix 2_), therefore there is a statistcally significant difference in the "mpg" of the two groups. For the sake of this projects we assume "mpg" to have a normal distribution, although it looks a little skewed. 
+```{r Fit model am, fig.height= 3, fig.width= 4}
+fit_am <- lm(mpg ~ am, mtcars)#model0
 ```
-A simple t-test confirm that the two transmissions are not from the same population as the interval does not contain 0 and the p-value `r t$p.value` is sufficiently low.
-```{r t.test interval}
-t$conf.int
+We consider a linear model with "am" as a predictor and "mpg" as a response (see _Appendix 3_).
+The model performs poorly: R-squared **`r round(summary(fit_am)$r.squared, 3)`** is very low (1 being best fit, 0 being no fit at all) and this, together with a Residual Standard Error (RSE) of **`r round(sd(summary(fit_am)$residuals), 3)`**, suggests that the model is not accurate.   
+
+We look therefore at other variables that might be confounders. Let's call primary the variables that refer to specifications of the car of the engine ("cyl", "disp", "drat", "wt", "vs", "am", "gear", "carb") and secondary the ones that are performance on the car ("mpg", "hp", "qsec") and therefore consequences of the primary ones. We are interesting in the outcome of a secondary variable ("mpg") with primary variables as predictors. Based on a brief literature review, the variables that can be relevant to our analysis are weight, the number of cylinders and the displacement. The rear axle ratio ("drat") is also mentioned as having an impact on fuel consumption.
+The weight and the number of cylinders can tell a lot about a car because they are related to the size and power of the engine and therefore the size and the type of car. Displacement (the amount of fuel burnt per stroke of the engine) gives similar information about the engine but in this case it is correlated with cylinders (see _Appendix 4_) and we therefore use interaction rather than confounding.  
+We will proceed at setting up 5 nested models, verifying the best fit and then drop redundant variables through an ANOVA test.
+
+```{r MODELS}
+fit_wt <- lm(mpg ~ wt, mtcars)#model1
+fit_wt2 <- update(fit_wt, mpg ~ wt + I(wt^2))#model2
+fit_wt2_cyl <- update(fit_wt2, mpg ~ wt + I(wt^2) + cyl)#model3
+fit_wt2_cyl_am <- update(fit_wt2_cyl, mpg ~ wt + I(wt^2) + cyl + am + wt:am)#model4
+fit_wt2_cyl_am_disp_drat <- update(fit_wt2_cyl_am, mpg ~ wt + I(wt^2) + cyl + am + drat + wt:am + cyl:disp)#model5
 ```
-
-We consider a linear model with "am" as a predictor and "mpg" as a response.    
-   
-```{r Fit model 1, fig.height= 3, fig.width= 4}
-fit_am <- lm(mpg ~ am, mtcars)
-```
-The relatevly high F-statistic and the very low p-value confirm that there might be a correlation, but if we look at how well the model fit, R-squared `r round(summary(fit_am)$r.squared, 3)` is very low (1 being best fit, 0 being no fit at all). This, together with a Residual Standard Error (RSE) of `r round(sd(summary(fit_am)$residuals), 3)`, suggests that the model is not very accurate and that there might be other model to better explain the correlation.
-We look therefore to other variables that might be confounder. Based on a brief literature review, the variables that can be relevant to our analysis are weight, the number of cylinders and the rear axle ratio (drat in dataset). We can call primary this variables as this are the engine and car specifications rather than performance. Other variables as "qsec" (which measures the acceleration) and "hp" (which measure the power of the engine) can be good indicators but they are performance variables and are consequences of the primary specs.
-The number of cylinders can tell a lot about a car because it is related to the size and power of the engine and therefore the size and the type of the car. Displacement (the amount of fuel burnt per stroke of the engine) gives similar information about the engine but it is correlated with cylinders(see APPENDIX). The weight combined with the number of cylinders and the displacement, can tell whether we are talking about a small car (small cyl, wt and disp therefore high mpg), a big car (high cyl, wt and disp and low mpg) or a sport car (high cyl and disp, low weight, low mpg). 
-
-```{r MODEL 1}
-fit_cyl <- lm(mpg ~ cyl, mtcars)
-```
-The predictor "cyl" explains `r paste(round(summary(fit_cyl)$r.squared*100, 1), "%")` of "mpg" variation. ADD DESCRIPTION OF THE SUMMARY
-```{r MODEL 2}
-fit_cyl_wt <- update(fit_cyl, mpg ~ cyl + wt)
-```
-Once we factor in the weight "wt", the model explains `r paste(round(summary(fit_cyl_wt)$r.squared*100, 1), "%")` of "mpg" variation with a RSE of `r round(summary(fit_cyl_wt)$sigma)` and very low p-values.
-In the final part we add the variable "am". From the graph in the appendix with "am" as a predictor, it seems that there is an interaction between "am" and "wt", as automatic cars in the dataset tend to be heavier than the manuals one (a t.test over the two populations confirm that, see APPENDIX).
-
-
-The third model includes cyinders, weight, manual/automatic transmission and the interaction between the latter and the weight
-
-```{r MODEL 3}
-fit_cyl_wt_am <- update(fit_cyl_wt, mpg ~ cyl + wt + am + wt:am)
-```
-
-Last, we add the variables "drat" and the interaction between "disp" and "cyl".
-
-```{r MODEL 4 and 5}
-fit_cyl_wt_am_drat <- update(fit_cyl_wt, mpg ~ cyl + wt + am + drat + wt:am)
-fit_cyl_wt_am_drat_disp <- update(fit_cyl_wt, mpg ~ cyl + wt + am + drat + wt:am + cyl:disp)
-```
+A look at the "wt" plot of _Appendix 1_ we can imagine two groups of cars, one of light and manual cars and the other of heavy and automatic cars. The plot in _Appendix 5_ suggests that there are indeed two groups with different reaction to the increase to weight. Rather than automatic/manuals having different "mpg" trend based on the weight, we suggest that there is a quadratic relationship between "wt" and "mpg", that is the slope changes with the weight (steeper on the left side of the graph, flatter on the right). This would explain why mpg in manuals cars, that are on the left of the graph, have a steeper slope than automatic ones.
+Let's have _model1_ with the linear predictor "wt" and _model2_ where we add "wt"^2. Indeed model2 better explains the relationship between "wt" and "mpg", as the R-squared goes from **`r round(summary(fit_wt)$r.squared, 2)`** to **`r round(summary(fit_wt2)$r.squared, 2)`** with a reduced RSE from **`r round(summary(fit_wt)$sigma, 2)`** to **`r round(summary(fit_wt2)$sigma, 2)`** and improved p-value (see _appendix 6_).
+In _model 3_ we add the variable "cyl".
+In _model4_ we introduce the variable "am", to try to answer the initial question and its interaction with "wt" (see _Appendix 5_).
+Based on literature review, displacement can have a big impact on fuel consumption, hence in _model5_, we introduce the interaction between "cyl" and "disp", plus the variable "drat". 
 We can now run an anova test to verify which of these variale can be dropped without loss of relevant information.
-```{r}
-anova(fit_cyl, fit_cyl_wt, fit_cyl_wt_am, fit_cyl_wt_am_drat, fit_cyl_wt_am_drat_disp)
+```{r Anova test, echo=TRUE, results=FALSE}
+a <- anova(fit_wt, fit_wt2, fit_wt2_cyl, fit_wt2_cyl_am, fit_wt2_cyl_am_disp_drat)
 ```
+The Anova test reveals that the impact of manual/automatic transmission on "mpg", with a p-value of 0.15 is not statistically significant (the variable "am" can be dropped) and that the most relevant variables in the dataset in predicting fuel consumption are the weight and the number of cylinders.
+We propose _model3_ as the most accurate in predicting the fuel consumption based on primary variables, as below:  
+    
+$mpg_i$ = `r round(fit_wt2_cyl$coefficients[1], 2)` + `r round(fit_wt2_cyl$coefficients[2], 2)`$wt_i$ + `r round(fit_wt2_cyl$coefficients[3], 2)`$wt_i^2$ + `r round(fit_wt2_cyl$coefficients[4], 2)`$cyl_i$
+
+The model explains ***`r round(summary(fit_wt2_cyl)$r.squared, 1)`%*** of the variation in fuel consumption with a residual standard error of ***`r round(summary(fit_wt2_cyl)$sigma, 1)` miles per gallon***. All of the coefficients are significant at 0.05 significant level.
+As final check we look at the plots of the residuals (see _Appendix 8_) to verify the following assumptions:
+
+1. The variables are indipendent : the Residuals vs Fitted shows no pattern and confirm indipendency;
+2. Normality of the residuals: the Normal Q-Q plot shows the standardised residuals laying on the line and confirm normality;
+3. Constant variance: the Scale-Location plot shows the points randomly distributed and confirm the variance is constant;
+4. In the Residuals vs Leverage plot all the points fall within the 0.5 band and confirm that there are no outliers.
 
 
-APPENDIX
-Exploratory graphs
+
+
+
+
+##APPENDIX     
+###Appendix 1          
+###Exploratory graphs  
+```{r Exploratory graph creation2, fig.width=9, echo=TRUE, eval=FALSE}
+##Print multiple exploratory graphs with ggplot using grid.arrange
+names_var <- names(select(mtcars, -mpg))
+out <- NULL
+g <- ggplot(mtcars, aes(y = mpg))
+for(i in 1:length(names_var)){
+    
+    g <- g + aes_string(x = names_var[i]) + 
+        geom_point(aes(colour = factor(am))) + 
+        geom_smooth(method = "lm", aes(group = 1)) + 
+        guides(colour = FALSE)
+    
+    out[[i]] <- g # creates a list with all the plots 
+}
+grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], 
+             out[[5]], out[[6]], out[[7]], out[[8]], 
+             out[[9]], out[[10]], nrow = 2)
+```
 
 ```{r, fig.width=9, cache=TRUE, results=TRUE, echo=FALSE}
-grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], out[[8]], out[[9]], out[[10]], nrow = 2)
+grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], 
+             out[[5]], out[[6]], out[[7]], out[[8]], 
+             out[[9]], out[[10]], nrow = 2)
+```    
+
+###Appendix 2    
+```{r t.test interval, echo=TRUE, eval=FALSE}
+t.test(mtcars$mpg ~ mtcars$am)
+```    
+
+###Appendix 3    
+```{r Fit model 1 appendix, fig.height= 3, fig.width= 4, echo=TRUE, eval=FALSE}
+fit_am <- lm(mpg ~ am, mtcars)
+summary(fit_am)
+```    
+
+###Appendix 4    
+```{r Correlation between disp and cyl, echo=TRUE, eval=FALSE}
+attach(mtcars)
+cor(cyl, disp)
+t.test(disp[cyl == 4], disp[cyl == 6])
+t.test(disp[cyl == 6], disp[cyl == 8])
+summary(lm(disp ~ cyl))
+detach(mtcars)
 ```
 
-```{r Correlation between wt and am}
+###Appendix 5 
+```{r wt and am interaction, fig.width=3, fig.height=3, echo=TRUE,  eval=FALSE}
+fit_interaction <- lm(mpg ~ am + wt + am*wt, mtcars)
+summary(fit_interaction)$coef
+plot(mtcars$wt, mtcars$mpg, col = as.factor(mtcars$am))
+abline(fit_interaction$coef[1],  fit_interaction$coef[3])
+abline(fit_interaction$coef[1] + fit_interaction$coef[2], 
+       fit_interaction$coef[3] + fit_interaction$coef[4], col = "red")
+```
+
+
+###Appendix 6
+```{r wt quadratic, echo=TRUE, eval=FALSE}
+summary(fit_wt)
+summary(fit_wt2)
+```     
+
+
+###Appendix 7
+```{r Correlation between wt and am, echo=TRUE,  eval=FALSE}
 attach(mtcars)
 cor(wt, am)
 t.test(wt[am == 0], wt[am == 1])
@@ -116,11 +182,9 @@ summary(lm(wt ~ am))
 detach(mtcars)
 ```
 
-```{r Correlation between disp and cyl}
-attach(mtcars)
-cor(cyl, disp)
-t.test(disp[cyl == 4], disp[cyl == 6])
-t.test(disp[cyl == 6], disp[cyl == 8])
-summary(lm(disp ~ cyl))
-detach(mtcars)
+###Appendix 8
+
+```{r Plot residuals, fig.height=8, echo=TRUE}
+par(mfrow=c(2,2))
+plot(fit_wt2_cyl)
 ```

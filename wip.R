@@ -192,8 +192,7 @@ summary(fit2)
 ###
 fit_interaction <- lm(mpg ~ am + wt + am*wt, mtcars)
 summary(fit_interaction)
-plot(mtcars$wt, mtcars$mpg, col = mtcars$am)
-plot(mtcars$wt, mtcars$mpg)
+plot(mtcars$wt, mtcars$mpg, col = as.factor(mtcars$am))
+abline(fit_interaction$coef[1],  fit_interaction$coef[3])
+abline(fit_interaction$coef[1]+fit_interaction$coef[2],  fit_interaction$coef[3]+fit_interaction$coef[4], col = "red")
 
-abline(31.4161,  -3.7859)
-abline(31.4161+14.87,  -3.7859-5.29, col = "red")

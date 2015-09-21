@@ -1,0 +1,95 @@
+---
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE)
+```
+
+```{r Packages, include=FALSE}
+require(ggplot2)
+require(tidyr)
+require(dplyr)
+require(grid)
+require(gridExtra)
+```
+
+***EXECUTIVE SUMMARY***   
+
+This report aims at investigating the following questions:
+
+1. Is an automatic or manual transmission better for MPG (miles per gallons)     
+2. Quantify the MPG difference between automatic and manual transmissions     
+
+The analysis is carried out on the dataset mtcars. Due to the small number of models and the age of the dataset, the results cannot be generalised to the current population of cars, but can give an insight within the set of cars considered.
+
+The sole distinction between manual and automatic cars is a poor predictor of the fuel consumption and other factors more influential have to be taken into account in a more precise prediction. The other reason we need to consider other factors is that in the database, manual cars tend to be imported models generally lighter and smaller, hence with lower fuel consumption.
+
+To better answer the question we therefore propose a model to predict fuel consumption which includes, on top of the a/m distinction, the weight of the car and the number of cylinders. In this context, there is not a statistically significant difference in fuel consumption between manual cars and automatic ones.
+
+***REPORT***
+
+The database contains ***`r length(mtcars$am)`*** car models of which ***`r table(mtcars$am)[1]`*** have automatic transmission and ***`r table(mtcars$am)[2]`*** have manual. 
+The variable "am" is ***0*** for automatic transmission and ***1*** for manual.
+
+```{r Dataset, fig.width=11}
+data(mtcars)
+#mtcars$cyl <- factor(mtcars$cyl); mtcars$vs <- factor(mtcars$vs) 
+#mtcars$am <- factor(mtcars$am); mtcars$gear <- factor(mtcars$gear) 
+#mtcars$carb <- factor(mtcars$carb)
+#add a column with origin
+#mtcars$imp <- 1
+#mtcars$imp[c(1:3, 8:14, 18:21, 26:28, 30:32)] <- 0
+#mtcars$imp <- as.logical(mtcars$imp)
+#head(mtcars)
+```
+
+```{r Exploratory graph creation, fig.width=9, include=FALSE}
+names_var <- names(select(mtcars, -mpg))
+out <- NULL
+g <- ggplot(mtcars, aes(y = mpg))
+for(i in 1:length(names_var)){
+    
+    g <- g + aes_string(x = names_var[i]) + geom_point(aes(colour = factor(am))) + geom_smooth(method = "lm", aes(group = 1)) + guides(colour = FALSE)
+    
+    out[[i]] <- g # creates a list with all the plots 
+}
+grid.arrange(out[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], out[[8]], out[[9]], out[[10]], nrow = 2)
+```
+
+```{r T.test, include = FALSE}
+t <- t.test(mtcars$mpg ~ mtcars$am)
+```    
+A simple t-test confirm that the two transmissions are not from the same population as the interval does not contain 0 and the p-value ***`r round(t$p.value, 2)`*** is sufficiently low (see appendix 2). For the sake of this projects we assume "mpg" to have a normal distribution, although it looks a little skewed. 
+
+    
+   
+```{r Fit model 1, fig.height= 3, fig.width= 4}
+fit_am <- lm(mpg ~ am, mtcars)
+```
+We consider a linear model with "am" as a predictor and "mpg" as a response.
+The relatevly high F-statistic and the very low p-value confirm that there might be a correlation, but if we look at how well the model fit, R-squared ***`r round(summary(fit_am)$r.squared, 3)`*** is very low (1 being best fit, 0 being no fit at all). This, together with a Residual Standard Error (RSE) of ***`r round(sd(summary(fit_am)$residuals), 3)`, suggests that the model is not very accurate and that there might be other model to better explain the correlation.   
+
+We look therefore to other variables that might be confounder. Based on a brief literature review, the variables that can be relevant to our analysis are weight, the number of cylinders and the rear axle ratio (drat in dataset). We can call primary this variables as this are the engines' and cars' specifications rather than performances. Other variables as "qsec" (which measures the acceleration) and "hp" (which measure the power of the engine) can be good indicators but they are performance variables and are consequences of the primary specs.
+Weight and the number of cylinders can tell a lot about a car because they are related to the size and power of the engine and therefore the size and the type of car. Displacement (the amount of fuel burnt per stroke of the engine) gives similar information about the engine but it is correlated with cylinders (see Appendix ***XX***).  
+
+```{r MODEL 1 - 2}
+fit_wt <- lm(mpg ~ wt, mtcars)
+fit_wt2 <- update(fit_wt, mpg ~ wt + I(wt^2))
+```
+A look at the "wt" plot of Appendix 1 suggests that manuals cars in the database are generally lighter. In Appendix 3, we plot the two different regression lines for manual cars (in red) and automatic (in black) with "wt" as predictor and "mpg" as an outcome. From the graph it seems that weight affects manual trasmission more than automatic transmission. Based on literature review we disregard this hypothesis and we suggest that this is due to "wt" being a quadratic predictor of "mpg" (that is, the first tons impact fuel consumption more than farther ones) and manual/lighter cars of this dataset, being in the left part of the graph, have a quicker decline in performance than automatic ones when weight increases.
+Indeed a linear model with a quadratic predictor better explain the relationship between "wt" and "mpg", as the R-squared goes from ***`r round(summary(fit_wt)$r.squared, 2)`*** to ***`r round(summary(fit_wt2)$r.squared, 2)`*** with a reduced RSE from ***`r round(summary(fit_wt)$sigma, 2)`*** to ***`r round(summary(fit_wt2)$sigma, 2)`*** and improved p-value (see appendix 4)
+
+
+```{r MODEL 3}
+fit_wt2_cyl <- update(fit_wt2, mpg ~ wt + I(wt^2) + cyl)
+```
+Once we factor in the weight "wt", the model explains ***r paste(round(summary(fit_cyl_wt)$r.squared*100, 1), "%")*** of "mpg" variation with a RSE of  and very low p-values.
+In the final part we add the variable "am". From the graph in the appendix with "am" as a predictor, it seems that there is an interaction between "am" and "wt", as automatic cars in the dataset tend to be heavier than the manuals one (a t.test over the two populations confirm that, see APPENDIX).
+
+
+The third model includes cyinders, weight, manual/automatic transmission and the interaction between the latter and the weight
+
+
+
