@@ -1,7 +1,7 @@
 ---
 output: 
   pdf_document: 
-    keep_tex: yes
+    keep_tex: no
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE)
@@ -13,6 +13,10 @@ require(tidyr)
 require(dplyr)
 require(grid)
 require(gridExtra)
+```
+
+```{r Dataset, fig.width=11}
+data(mtcars)
 ```
 
 ```{r, model function}
@@ -47,9 +51,7 @@ The analysis is carried out on the dataset mtcars. Due to the small number of mo
 The database contains **`r length(mtcars$am)`** car models of which **`r table(mtcars$am)[1]`** have automatic transmission and **`r table(mtcars$am)[2]`** have manual. 
 The variable "am" is **0** for automatic transmission and **1** for manual.
 
-```{r Dataset, fig.width=11}
-data(mtcars)
-```
+
 
 ```{r Exploratory graph creation, fig.width=9, include=FALSE}
 names_var <- names(select(mtcars, -mpg))
